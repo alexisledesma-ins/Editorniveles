@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Editor y Engine de Niveles</title>
+  <title>Editor Completo de Niveles</title>
   <style>
     * { box-sizing: border-box; touch-action: manipulation; }
     body {
@@ -16,14 +16,31 @@
       padding: 10px;
       margin: 0;
     }
-    .mode-switch { margin-bottom: 10px; display: flex; gap: 10px; }
+    .mode-switch { margin-bottom: 8px; display: flex; gap: 10px; }
     .mode-btn { padding: 8px 16px; font-weight: bold; border-radius: 6px; border: none; background: #333; color: #fff; }
     .mode-btn.active { background: #2196F3; }
-    
+
+    /* CONTROLES DE CONFIGURACIÓN Y PISO */
+    .config-panel {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+      background: #1e1e1e;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .config-panel label { display: flex; align-items: center; gap: 4px; }
+    .config-panel input { width: 45px; background: #333; border: 1px solid #555; color: #fff; padding: 4px; border-radius: 4px; text-align: center; }
+    .config-panel button { background: #2196F3; border: none; color: #fff; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+
     #palette {
       display: flex;
       gap: 6px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       overflow-x: auto;
       max-width: 100vw;
       padding: 4px;
@@ -39,10 +56,9 @@
     }
     .tool.selected { border-color: #FFF; font-weight: bold; }
 
+    #game-container { overflow: auto; max-width: 100vw; padding: 5px; }
     #game-board {
       display: grid;
-      grid-template-columns: repeat(8, 40px);
-      grid-template-rows: repeat(8, 40px);
       gap: 2px;
       background-color: #333;
       padding: 5px;
@@ -53,24 +69,33 @@
       height: 40px;
       background-color: #222;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-size: 10px;
+      font-size: 9px;
       font-weight: bold;
       border-radius: 4px;
       user-select: none;
+      position: relative;
     }
-    .player { background-color: #4CAF50; color: #fff; }
-    .box_wood { background-color: #8B4513; color: #fff; }
-    .box_ice { background-color: #00BCD4; color: #fff; }
-    .box_elevator { background-color: #FFC107; color: #000; }
-    .box_stone { background-color: #757575; color: #fff; }
-    .pressure_plate { background-color: #9C27B0; color: #fff; }
-    .exit_portal { background-color: #E91E63; color: #fff; }
-    
+    /* Estilos visuales de capa/altura */
+    .tile[data-height="2"] { border: 2px solid #FFC107; background-color: #2a2510; }
+    .tile[data-height="3"] { border: 2px solid #FF9800; background-color: #33200a; }
+
+    .player { background-color: #4CAF50 !important; color: #fff; }
+    .box_wood { background-color: #8B4513 !important; color: #fff; }
+    .box_ice { background-color: #00BCD4 !important; color: #fff; }
+    .box_elevator { background-color: #FFC107 !important; color: #000; }
+    .box_stone { background-color: #757575 !important; color: #fff; }
+    .pressure_plate { background-color: #9C27B0 !important; color: #fff; }
+    .gate { background-color: #FF5722 !important; color: #fff; }
+    .exit_portal { background-color: #E91E63 !important; color: #fff; }
+
+    .link-badge { font-size: 8px; background: rgba(0,0,0,0.6); padding: 1px 3px; border-radius: 3px; margin-top: 2px; }
+
     .controls { margin-top: 15px; display: grid; grid-template-columns: repeat(3, 50px); gap: 8px; }
     .ctrl-btn { width: 50px; height: 50px; font-size: 18px; border: none; border-radius: 6px; background: #333; color: #fff; }
-    #json-output { width: 100%; max-width: 340px; height: 80px; margin-top: 10px; background: #1e1e1e; color: #00ff00; font-family: monospace; font-size: 10px; border-radius: 4px; }
+    #json-output { width: 100%; max-width: 360px; height: 90px; margin-top: 10px; background: #1e1e1e; color: #00ff00; font-family: monospace; font-size: 10px; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -80,21 +105,34 @@
     <button id="btn-play-mode" class="mode-btn" onclick="setMode('play')">Modo Jugar</button>
   </div>
 
-  <!-- PALETA DE HERRAMIENTAS DEL EDITOR -->
+  <!-- PANEL DE TAMAÑO DE TABLERO Y ALTURA -->
+  <div class="config-panel" id="config-panel">
+    <label>Ancho: <input type="number" id="inp-w" value="8" min="3" max="15"></label>
+    <label>Alto: <input type="number" id="inp-h" value="8" min="3" max="15"></label>
+    <button onclick="updateDimensions()">Redimensionar</button>
+    <span style="border-left: 1px solid #555; padding-left: 8px;"></span>
+    <label>Piso/Capa Y: <input type="number" id="inp-y" value="1" min="1" max="3" onchange="currentLayer = parseInt(this.value); renderEditor();"></label>
+  </div>
+
+  <!-- PALETA DE HERRAMIENTAS -->
   <div id="palette">
     <button class="tool selected" onclick="selectTool('player', this)">Jugador</button>
     <button class="tool" onclick="selectTool('box_wood', this)">Madera</button>
     <button class="tool" onclick="selectTool('box_ice', this)">Hielo</button>
     <button class="tool" onclick="selectTool('box_stone', this)">Piedra</button>
-    <button class="tool" onclick="selectTool('box_elevator', this)">Elevador</button>
-    <button class="tool" onclick="selectTool('pressure_plate', this)">Boton</button>
+    <button class="tool" onclick="selectTool('box_elevator', this)">Elevador (Y+1)</button>
+    <button class="tool" onclick="selectTool('pressure_plate', this)">Botón (Switch)</button>
+    <button class="tool" onclick="selectTool('gate', this)">Puerta (Gate)</button>
     <button class="tool" onclick="selectTool('exit_portal', this)">Meta</button>
+    <button class="tool" onclick="selectTool('linker', this)">Enlazar (Link)</button>
     <button class="tool" onclick="selectTool('erase', this)">Borrar</button>
   </div>
 
-  <div id="game-board"></div>
+  <div id="game-container">
+    <div id="game-board"></div>
+  </div>
 
-  <!-- CONTROLES DE JUEGO -->
+  <!-- CONTROLES MÓVILES -->
   <div id="play-controls" class="controls" style="display:none;">
     <div></div>
     <button class="ctrl-btn" onclick="gameEngine.move('UP')">▲</button>
@@ -104,24 +142,35 @@
     <button class="ctrl-btn" onclick="gameEngine.move('RIGHT')">►</button>
   </div>
 
-  <textarea id="json-output" readonly placeholder="JSON del nivel generado..."></textarea>
+  <textarea id="json-output" readonly placeholder="JSON del nivel..."></textarea>
 
   <script>
     let currentMode = 'edit';
     let selectedTool = 'player';
-    const gridDim = { width: 8, depth: 8 };
+    let currentLayer = 1;
+    let linkingSource = null; // Guardar el botón que va a enlazarse a una puerta
+    let nextLinkId = 1;
 
-    // ESTADO DEL NIVEL (Estructura JSON)
     let levelData = {
-      dimensions: gridDim,
-      player_start: { x: 1, z: 1 },
+      dimensions: { width: 8, depth: 8, height: 3 },
+      player_start: { x: 1, y: 1, z: 1 },
       entities: [],
       triggers: [],
+      gates: [],
       goals: []
     };
 
+    function updateDimensions() {
+      const w = parseInt(document.getElementById('inp-w').value) || 8;
+      const h = parseInt(document.getElementById('inp-h').value) || 8;
+      levelData.dimensions.width = w;
+      levelData.dimensions.depth = h;
+      renderEditor();
+    }
+
     function selectTool(tool, element) {
       selectedTool = tool;
+      linkingSource = null;
       document.querySelectorAll('.tool').forEach(el => el.classList.remove('selected'));
       element.classList.add('selected');
     }
@@ -131,8 +180,9 @@
       document.getElementById('btn-edit-mode').classList.toggle('active', mode === 'edit');
       document.getElementById('btn-play-mode').classList.toggle('active', mode === 'play');
       document.getElementById('palette').style.display = mode === 'edit' ? 'flex' : 'none';
+      document.getElementById('config-panel').style.display = mode === 'edit' ? 'flex' : 'none';
       document.getElementById('play-controls').style.display = mode === 'play' ? 'grid' : 'none';
-      
+
       if (mode === 'play') {
         gameEngine.init(JSON.parse(JSON.stringify(levelData)));
       } else {
@@ -140,27 +190,49 @@
       }
     }
 
-    // LÓGICA DE EDICIÓN AL HACER CLIC EN EL GRID
     function handleTileClick(x, z) {
       if (currentMode !== 'edit') return;
+      const y = currentLayer;
 
-      // Limpiar entidad previa en esa coordenada
-      levelData.entities = levelData.entities.filter(e => !(e.position.x === x && e.position.z === z));
+      // MODO ENLAZADOR (Linker)
+      if (selectedTool === 'linker') {
+        const trig = levelData.triggers.find(t => t.position.x === x && t.position.z === z);
+        const gate = levelData.gates.find(g => g.position.x === x && g.position.z === z);
+
+        if (trig) {
+          linkingSource = trig;
+          alert(`Botón seleccionado. Ahora toca la Puerta que deseas enlazar.`);
+        } else if (gate && linkingSource) {
+          const linkTag = `link_${nextLinkId++}`;
+          linkingSource.target_gate_id = linkTag;
+          gate.id = linkTag;
+          alert(`¡Enlace creado correctamente! (${linkTag})`);
+          linkingSource = null;
+          renderEditor();
+        }
+        return;
+      }
+
+      // Limpiar objetos en la misma coordenada
+      levelData.entities = levelData.entities.filter(e => !(e.position.x === x && e.position.z === z && (e.position.y || 1) === y));
       levelData.triggers = levelData.triggers.filter(t => !(t.position.x === x && t.position.z === z));
+      levelData.gates = levelData.gates.filter(g => !(g.position.x === x && g.position.z === z));
       levelData.goals = levelData.goals.filter(g => !(g.position.x === x && g.position.z === z));
 
       if (selectedTool === 'player') {
-        levelData.player_start = { x, z };
+        levelData.player_start = { x, y, z };
       } else if (selectedTool === 'pressure_plate') {
-        levelData.triggers.push({ id: `trig_${x}_${z}`, type: 'pressure_plate', position: { x, z } });
+        levelData.triggers.push({ id: `trig_${x}_${z}`, type: 'pressure_plate', position: { x, z }, target_gate_id: null });
+      } else if (selectedTool === 'gate') {
+        levelData.gates.push({ id: `gate_${x}_${z}`, type: 'gate', position: { x, z }, is_open: false });
       } else if (selectedTool === 'exit_portal') {
-        levelData.goals.push({ id: `goal_${x}_${z}`, type: 'exit_portal', position: { x, z }, requires_all_triggers: true });
+        levelData.goals.push({ id: `goal_${x}_${z}`, type: 'exit_portal', position: { x, z } });
       } else if (selectedTool !== 'erase') {
         const isPushable = selectedTool === 'box_wood' || selectedTool === 'box_ice';
         levelData.entities.push({
-          id: `ent_${x}_${z}`,
+          id: `ent_${x}_${z}_${y}`,
           type: selectedTool,
-          position: { x, z },
+          position: { x, y, z },
           is_pushable: isPushable
         });
       }
@@ -170,32 +242,47 @@
 
     function renderEditor() {
       const board = document.getElementById('game-board');
+      board.style.gridTemplateColumns = `repeat(${levelData.dimensions.width}, 40px)`;
       board.innerHTML = '';
 
-      for (let z = 0; z < gridDim.depth; z++) {
-        for (let x = 0; x < gridDim.width; x++) {
+      for (let z = 0; z < levelData.dimensions.depth; z++) {
+        for (let x = 0; x < levelData.dimensions.width; x++) {
           const tile = document.createElement('div');
           tile.className = 'tile';
           tile.onclick = () => handleTileClick(x, z);
 
-          if (levelData.player_start.x === x && levelData.player_start.z === z) {
-            tile.classList.add('player');
-            tile.innerText = 'P1';
+          // Elementos base independientemente del piso (Triggers/Puertas)
+          const trig = levelData.triggers.find(t => t.position.x === x && t.position.z === z);
+          if (trig) {
+            tile.classList.add('pressure_plate');
+            tile.innerText = 'Btn';
+            if (trig.target_gate_id) tile.innerHTML += `<span class="link-badge">${trig.target_gate_id}</span>`;
           }
 
-          const trig = levelData.triggers.find(t => t.position.x === x && t.position.z === z);
-          if (trig) { tile.classList.add('pressure_plate'); tile.innerText = 'Btn'; }
+          const gate = levelData.gates.find(g => g.position.x === x && g.position.z === z);
+          if (gate) {
+            tile.classList.add('gate');
+            tile.innerText = 'Puerta';
+            if (gate.id) tile.innerHTML += `<span class="link-badge">${gate.id}</span>`;
+          }
 
           const goal = levelData.goals.find(g => g.position.x === x && g.position.z === z);
           if (goal) { tile.classList.add('exit_portal'); tile.innerText = 'Meta'; }
 
-          const ent = levelData.entities.find(e => e.position.x === x && e.position.z === z);
+          // Elementos por piso actual (Y)
+          const ent = levelData.entities.find(e => e.position.x === x && e.position.z === z && (e.position.y || 1) === currentLayer);
           if (ent) {
             tile.classList.add(ent.type);
             const labels = { box_wood: 'Madera', box_ice: 'Hielo', box_stone: 'Piedra', box_elevator: 'Elev' };
             tile.innerText = labels[ent.type] || '';
           }
 
+          if (levelData.player_start.x === x && levelData.player_start.z === z && (levelData.player_start.y || 1) === currentLayer) {
+            tile.className = 'tile player';
+            tile.innerText = 'P1';
+          }
+
+          tile.setAttribute('data-height', currentLayer);
           board.appendChild(tile);
         }
       }
@@ -205,68 +292,95 @@
     // MOTOR DE JUEGO
     const gameEngine = {
       data: null,
-      pos: { x: 0, z: 0 },
+      pos: { x: 0, y: 1, z: 0 },
       init(data) {
         this.data = data;
         this.pos = { ...data.player_start };
+        if (!this.pos.y) this.pos.y = 1;
         this.render();
       },
       move(dir) {
         const d = { UP: { x: 0, z: -1 }, DOWN: { x: 0, z: 1 }, LEFT: { x: -1, z: 0 }, RIGHT: { x: 1, z: 0 } }[dir];
         const tx = this.pos.x + d.x, tz = this.pos.z + d.z;
-        if (tx < 0 || tx >= gridDim.width || tz < 0 || tz >= gridDim.depth) return;
 
-        const ent = this.data.entities.find(e => e.position.x === tx && e.position.z === tz);
+        if (tx < 0 || tx >= this.data.dimensions.width || tz < 0 || tz >= this.data.dimensions.depth) return;
+
+        // Comprobar Puertas cerradas
+        const gate = this.data.gates.find(g => g.position.x === tx && g.position.z === tz);
+        if (gate && !gate.is_open) return;
+
+        // Comprobar entidades en la posición y altura actual
+        const ent = this.data.entities.find(e => e.position.x === tx && e.position.z === tz && (e.position.y || 1) === this.pos.y);
+
         if (ent) {
-          if (ent.type === 'box_elevator') { this.pos = { x: tx, z: tz }; }
-          else if (ent.is_pushable && this.push(ent, d)) { this.pos = { x: tx, z: tz }; }
+          if (ent.type === 'box_elevator') {
+            this.pos = { x: tx, y: this.pos.y + 1, z: tz }; // Subir de piso
+          } else if (ent.is_pushable && this.push(ent, d)) {
+            this.pos = { x: tx, y: this.pos.y, z: tz };
+          }
+          this.checkTriggers();
           this.render();
           return;
         }
-        this.pos = { x: tx, z: tz };
+
+        this.pos = { x: tx, y: this.pos.y, z: tz };
+        this.checkTriggers();
         this.render();
       },
       push(ent, d) {
         let nx = ent.position.x + d.x, nz = ent.position.z + d.z;
-        if (nx < 0 || nx >= gridDim.width || nz < 0 || nz >= gridDim.depth) return false;
-        if (this.data.entities.some(e => e.position.x === nx && e.position.z === nz)) return false;
+        if (nx < 0 || nx >= this.data.dimensions.width || nz < 0 || nz >= this.data.dimensions.depth) return false;
+        if (this.data.entities.some(e => e.position.x === nx && e.position.z === nz && (e.position.y || 1) === ent.position.y)) return false;
 
         if (ent.type === 'box_wood') {
-          ent.position = { x: nx, z: nz };
+          ent.position.x = nx; ent.position.z = nz;
           return true;
         }
         if (ent.type === 'box_ice') {
           let lx = ent.position.x, lz = ent.position.z;
-          while (nx >= 0 && nx < gridDim.width && nz >= 0 && nz < gridDim.depth && !this.data.entities.some(e => e.position.x === nx && e.position.z === nz)) {
+          while (nx >= 0 && nx < this.data.dimensions.width && nz >= 0 && nz < this.data.dimensions.depth &&
+                 !this.data.entities.some(e => e.position.x === nx && e.position.z === nz && (e.position.y || 1) === ent.position.y)) {
             lx = nx; lz = nz; nx += d.x; nz += d.z;
           }
-          ent.position = { x: lx, z: lz };
+          ent.position.x = lx; ent.position.z = lz;
           return true;
         }
         return false;
       },
+      checkTriggers() {
+        this.data.triggers.forEach(trig => {
+          const pressed = (this.pos.x === trig.position.x && this.pos.z === trig.position.z) ||
+                          this.data.entities.some(e => e.position.x === trig.position.x && e.position.z === trig.position.z);
+
+          if (trig.target_gate_id) {
+            const gate = this.data.gates.find(g => g.id === trig.target_gate_id);
+            if (gate) gate.is_open = pressed;
+          }
+        });
+      },
       render() {
         const board = document.getElementById('game-board');
+        board.style.gridTemplateColumns = `repeat(${this.data.dimensions.width}, 40px)`;
         board.innerHTML = '';
-        
-        let allTriggersPressed = true;
-        this.data.triggers.forEach(t => {
-          const pressed = (this.pos.x === t.position.x && this.pos.z === t.position.z) || this.data.entities.some(e => e.position.x === t.position.x && e.position.z === t.position.z);
-          if (!pressed) allTriggersPressed = false;
-        });
 
-        for (let z = 0; z < gridDim.depth; z++) {
-          for (let x = 0; x < gridDim.width; x++) {
+        for (let z = 0; z < this.data.dimensions.depth; z++) {
+          for (let x = 0; x < this.data.dimensions.width; x++) {
             const tile = document.createElement('div');
             tile.className = 'tile';
 
             const trig = this.data.triggers.find(t => t.position.x === x && t.position.z === z);
             if (trig) tile.classList.add('pressure_plate');
 
-            const goal = this.data.goals.find(g => g.position.x === x && g.position.z === z);
-            if (goal && allTriggersPressed) tile.classList.add('exit_portal');
+            const gate = this.data.gates.find(g => g.position.x === x && g.position.z === z);
+            if (gate && !gate.is_open) {
+              tile.classList.add('gate');
+              tile.innerText = 'Puerta';
+            }
 
-            const ent = this.data.entities.find(e => e.position.x === x && e.position.z === z);
+            const goal = this.data.goals.find(g => g.position.x === x && g.position.z === z);
+            if (goal) tile.classList.add('exit_portal');
+
+            const ent = this.data.entities.find(e => e.position.x === x && e.position.z === z && (e.position.y || 1) === this.pos.y);
             if (ent) {
               tile.classList.add(ent.type);
               const labels = { box_wood: 'Madera', box_ice: 'Hielo', box_stone: 'Piedra', box_elevator: 'Elev' };
@@ -275,9 +389,10 @@
 
             if (this.pos.x === x && this.pos.z === z) {
               tile.className = 'tile player';
-              tile.innerText = 'P1';
+              tile.innerText = `P1 (Y:${this.pos.y})`;
             }
 
+            tile.setAttribute('data-height', this.pos.y);
             board.appendChild(tile);
           }
         }

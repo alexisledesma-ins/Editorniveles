@@ -20,7 +20,7 @@
     .mode-btn { padding: 8px 16px; font-weight: bold; border-radius: 6px; border: none; background: #333; color: #fff; }
     .mode-btn.active { background: #2196F3; }
 
-    /* CONTROLES DE CONFIGURACIÓN Y PISO */
+    /* CONTROLES DE CONFIGURACIÓN, ARCHIVOS Y PISO */
     .config-panel {
       display: flex;
       gap: 8px;
@@ -34,8 +34,10 @@
       justify-content: center;
     }
     .config-panel label { display: flex; align-items: center; gap: 4px; }
-    .config-panel input { width: 45px; background: #333; border: 1px solid #555; color: #fff; padding: 4px; border-radius: 4px; text-align: center; }
-    .config-panel button { background: #2196F3; border: none; color: #fff; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+    .config-panel input[type="number"] { width: 45px; background: #333; border: 1px solid #555; color: #fff; padding: 4px; border-radius: 4px; text-align: center; }
+    .action-btn { background: #2196F3; border: none; color: #fff; padding: 6px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    .save-btn { background: #4CAF50; }
+    .load-btn { background: #FF9800; }
 
     #palette {
       display: flex;
@@ -78,7 +80,6 @@
       user-select: none;
       position: relative;
     }
-    /* Estilos visuales de capa/altura */
     .tile[data-height="2"] { border: 2px solid #FFC107; background-color: #2a2510; }
     .tile[data-height="3"] { border: 2px solid #FF9800; background-color: #33200a; }
 
@@ -105,13 +106,19 @@
     <button id="btn-play-mode" class="mode-btn" onclick="setMode('play')">Modo Jugar</button>
   </div>
 
-  <!-- PANEL DE TAMAÑO DE TABLERO Y ALTURA -->
+  <!-- PANEL DE TAMAÑO, GUARDADO Y PISO -->
   <div class="config-panel" id="config-panel">
     <label>Ancho: <input type="number" id="inp-w" value="8" min="3" max="15"></label>
     <label>Alto: <input type="number" id="inp-h" value="8" min="3" max="15"></label>
-    <button onclick="updateDimensions()">Redimensionar</button>
+    <button class="action-btn" onclick="updateDimensions()">Redimensionar</button>
+    
     <span style="border-left: 1px solid #555; padding-left: 8px;"></span>
-    <label>Piso/Capa Y: <input type="number" id="inp-y" value="1" min="1" max="3" onchange="currentLayer = parseInt(this.value); renderEditor();"></label>
+    <label>Piso Y: <input type="number" id="inp-y" value="1" min="1" max="3" onchange="currentLayer = parseInt(this.value); renderEditor();"></label>
+    
+    <span style="border-left: 1px solid #555; padding-left: 8px;"></span>
+    <button class="action-btn save-btn" onclick="downloadLevelJSON()">Descargar JSON</button>
+    <button class="action-btn load-btn" onclick="document.getElementById('file-input').click()">Cargar JSON</button>
+    <input type="file" id="file-input" accept=".json" style="display:none;" onchange="loadLevelJSON(event)">
   </div>
 
   <!-- PALETA DE HERRAMIENTAS -->
@@ -148,7 +155,7 @@
     let currentMode = 'edit';
     let selectedTool = 'player';
     let currentLayer = 1;
-    let linkingSource = null; // Guardar el botón que va a enlazarse a una puerta
+    let linkingSource = null;
     let nextLinkId = 1;
 
     let levelData = {
@@ -159,6 +166,36 @@
       gates: [],
       goals: []
     };
+
+    // FUNCIONES DE GUARDADO Y CARGA DE NIVELES
+    function downloadLevelJSON() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(levelData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", "nivel_puzzle.json");
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function loadLevelJSON(event) {
+      const fileReader = new FileReader();
+      fileReader.onload = function(e) {
+        try {
+          const loadedData = JSON.parse(e.target.result);
+          levelData = loadedData;
+          document.getElementById('inp-w').value = levelData.dimensions.width;
+          document.getElementById('inp-h').value = levelData.dimensions.depth;
+          currentLayer = 1;
+          document.getElementById('inp-y').value = 1;
+          renderEditor();
+          alert("¡Nivel cargado con éxito!");
+        } catch (err) {
+          alert("Error al leer el archivo JSON.");
+        }
+      };
+      fileReader.readAsText(event.target.files[0]);
+    }
 
     function updateDimensions() {
       const w = parseInt(document.getElementById('inp-w').value) || 8;
@@ -194,7 +231,6 @@
       if (currentMode !== 'edit') return;
       const y = currentLayer;
 
-      // MODO ENLAZADOR (Linker)
       if (selectedTool === 'linker') {
         const trig = levelData.triggers.find(t => t.position.x === x && t.position.z === z);
         const gate = levelData.gates.find(g => g.position.x === x && g.position.z === z);
@@ -213,7 +249,6 @@
         return;
       }
 
-      // Limpiar objetos en la misma coordenada
       levelData.entities = levelData.entities.filter(e => !(e.position.x === x && e.position.z === z && (e.position.y || 1) === y));
       levelData.triggers = levelData.triggers.filter(t => !(t.position.x === x && t.position.z === z));
       levelData.gates = levelData.gates.filter(g => !(g.position.x === x && g.position.z === z));
@@ -251,7 +286,6 @@
           tile.className = 'tile';
           tile.onclick = () => handleTileClick(x, z);
 
-          // Elementos base independientemente del piso (Triggers/Puertas)
           const trig = levelData.triggers.find(t => t.position.x === x && t.position.z === z);
           if (trig) {
             tile.classList.add('pressure_plate');
@@ -269,7 +303,6 @@
           const goal = levelData.goals.find(g => g.position.x === x && g.position.z === z);
           if (goal) { tile.classList.add('exit_portal'); tile.innerText = 'Meta'; }
 
-          // Elementos por piso actual (Y)
           const ent = levelData.entities.find(e => e.position.x === x && e.position.z === z && (e.position.y || 1) === currentLayer);
           if (ent) {
             tile.classList.add(ent.type);
@@ -305,16 +338,14 @@
 
         if (tx < 0 || tx >= this.data.dimensions.width || tz < 0 || tz >= this.data.dimensions.depth) return;
 
-        // Comprobar Puertas cerradas
         const gate = this.data.gates.find(g => g.position.x === tx && g.position.z === tz);
         if (gate && !gate.is_open) return;
 
-        // Comprobar entidades en la posición y altura actual
         const ent = this.data.entities.find(e => e.position.x === tx && e.position.z === tz && (e.position.y || 1) === this.pos.y);
 
         if (ent) {
           if (ent.type === 'box_elevator') {
-            this.pos = { x: tx, y: this.pos.y + 1, z: tz }; // Subir de piso
+            this.pos = { x: tx, y: this.pos.y + 1, z: tz };
           } else if (ent.is_pushable && this.push(ent, d)) {
             this.pos = { x: tx, y: this.pos.y, z: tz };
           }

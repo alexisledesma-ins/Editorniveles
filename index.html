@@ -95,7 +95,8 @@
     .link-badge { font-size: 8px; background: rgba(0,0,0,0.6); padding: 1px 3px; border-radius: 3px; margin-top: 2px; }
 
     .controls { margin-top: 15px; display: grid; grid-template-columns: repeat(3, 50px); gap: 8px; }
-    .ctrl-btn { width: 50px; height: 50px; font-size: 18px; border: none; border-radius: 6px; background: #333; color: #fff; }
+    .ctrl-btn { width: 50px; height: 50px; font-size: 18px; border: none; border-radius: 6px; background: #333; color: #fff; cursor: pointer; }
+    .reset-btn { background: #f44336; font-weight: bold; }
     #json-output { width: 100%; max-width: 360px; height: 90px; margin-top: 10px; background: #1e1e1e; color: #00ff00; font-family: monospace; font-size: 10px; border-radius: 4px; }
   </style>
 </head>
@@ -141,7 +142,7 @@
 
   <!-- CONTROLES MÓVILES -->
   <div id="play-controls" class="controls" style="display:none;">
-    <div></div>
+    <button class="ctrl-btn reset-btn" onclick="gameEngine.restart()" title="Reiniciar nivel">↺</button>
     <button class="ctrl-btn" onclick="gameEngine.move('UP')">▲</button>
     <div></div>
     <button class="ctrl-btn" onclick="gameEngine.move('LEFT')">◄</button>
@@ -221,7 +222,7 @@
       document.getElementById('play-controls').style.display = mode === 'play' ? 'grid' : 'none';
 
       if (mode === 'play') {
-        gameEngine.init(JSON.parse(JSON.stringify(levelData)));
+        gameEngine.init(levelData);
       } else {
         renderEditor();
       }
@@ -260,8 +261,6 @@
         levelData.triggers.push({ id: `trig_${x}_${z}`, type: 'pressure_plate', position: { x, z }, target_gate_id: null });
       } else if (selectedTool === 'gate') {
         levelData.gates.push({ id: `gate_${x}_${z}`, type: 'gate', position: { x, z }, is_open: false });
-      } else if (selectedTool === 'exit_portal') {
-        levelData.goals.push({ id: `goal_${x}_${z}`, type: 'exit_portal', position: { x, z } });
       } else if (selectedTool !== 'erase') {
         const isPushable = selectedTool === 'box_wood' || selectedTool === 'box_ice';
         levelData.entities.push({
@@ -324,15 +323,28 @@
 
     // MOTOR DE JUEGO
     const gameEngine = {
+      rawLevelData: null,
       data: null,
       pos: { x: 0, y: 1, z: 0 },
+      isCompleted: false,
+
       init(data) {
-        this.data = data;
-        this.pos = { ...data.player_start };
+        this.rawLevelData = JSON.stringify(data);
+        this.restart();
+      },
+
+      restart() {
+        this.data = JSON.parse(this.rawLevelData);
+        this.pos = { ...this.data.player_start };
         if (!this.pos.y) this.pos.y = 1;
+        this.isCompleted = false;
+        this.checkTriggers();
         this.render();
       },
+
       move(dir) {
+        if (this.isCompleted) return;
+
         const d = { UP: { x: 0, z: -1 }, DOWN: { x: 0, z: 1 }, LEFT: { x: -1, z: 0 }, RIGHT: { x: 1, z: 0 } }[dir];
         const tx = this.pos.x + d.x, tz = this.pos.z + d.z;
 
@@ -350,14 +362,17 @@
             this.pos = { x: tx, y: this.pos.y, z: tz };
           }
           this.checkTriggers();
+          this.checkWinCondition();
           this.render();
           return;
         }
 
         this.pos = { x: tx, y: this.pos.y, z: tz };
         this.checkTriggers();
+        this.checkWinCondition();
         this.render();
       },
+
       push(ent, d) {
         let nx = ent.position.x + d.x, nz = ent.position.z + d.z;
         if (nx < 0 || nx >= this.data.dimensions.width || nz < 0 || nz >= this.data.dimensions.depth) return false;
@@ -378,6 +393,7 @@
         }
         return false;
       },
+
       checkTriggers() {
         this.data.triggers.forEach(trig => {
           const pressed = (this.pos.x === trig.position.x && this.pos.z === trig.position.z) ||
@@ -389,6 +405,17 @@
           }
         });
       },
+
+      checkWinCondition() {
+        const goalReached = this.data.goals.some(g => g.position.x === this.pos.x && g.position.z === this.pos.z);
+        if (goalReached && !this.isCompleted) {
+          this.isCompleted = true;
+          setTimeout(() => {
+            alert("🎉 ¡NIVEL COMPLETADO! 🎉");
+          }, 100);
+        }
+      },
+
       render() {
         const board = document.getElementById('game-board');
         board.style.gridTemplateColumns = `repeat(${this.data.dimensions.width}, 40px)`;

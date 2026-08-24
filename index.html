@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>1024 Puzzle Engine Test</title>
+  <style>
+    * { box-sizing: border-box; touch-action: manipulation; }
+    body {
+      background-color: #121212;
+      color: #fff;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    #game-board {
+      display: grid;
+      grid-template-columns: repeat(8, 40px);
+      grid-template-rows: repeat(8, 40px);
+      gap: 2px;
+      background-color: #333;
+      padding: 5px;
+      border-radius: 8px;
+    }
+    .tile {
+      width: 40px;
+      height: 40px;
+      background-color: #222;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 12px;
+      border-radius: 4px;
+    }
+    .player { background-color: #4CAF50; color: #fff; }
+    .box_wood { background-color: #8B4513; color: #fff; }
+    .box_ice { background-color: #00BCD4; color: #fff; }
+    .box_elevator { background-color: #FFC107; color: #000; }
+    .box_stone { background-color: #757575; color: #fff; }
+    .pressure_plate { background-color: #9C27B0; }
+    .exit_portal { background-color: #E91E63; }
+    .controls {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(3, 60px);
+      gap: 10px;
+    }
+    button {
+      width: 60px;
+      height: 60px;
+      font-size: 20px;
+      border: none;
+      border-radius: 8px;
+      background-color: #333;
+      color: #fff;
+    }
+    button:active { background-color: #555; }
+    #status { margin-top: 15px; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <h2>Puzzle Engine Test</h2>
+  <div id="game-board"></div>
+  <div id="status">Movimientos: 0</div>
+
+  <div class="controls">
+    <div></div>
+    <button onclick="game.movePlayer('UP')">▲</button>
+    <div></div>
+    <button onclick="game.movePlayer('LEFT')">◄</button>
+    <button onclick="game.movePlayer('DOWN')">▼</button>
+    <button onclick="game.movePlayer('RIGHT')">►</button>
+  </div>
+
+  <script>
+    // ENTIDADES Y ENUMS
+    const ENTITY_TYPES = {
+      BOX_WOOD: 'box_wood',
+      BOX_ICE: 'box_ice',
+      BOX_ELEVATOR: 'box_elevator',
+      BOX_STONE: 'box_stone',
+      PRESSURE_PLATE: 'pressure_plate',
+      EXIT_PORTAL: 'exit_portal'
+    };
+
+    const DIRECTIONS = {
+      UP: { x: 0, z: -1 },
+      DOWN: { x: 0, z: 1 },
+      LEFT: { x: -1, z: 0 },
+      RIGHT: { x: 1, z: 0 }
+    };
+
+    class PuzzleEngine {
+      constructor(levelData) { this.loadLevel(levelData); }
+
+      loadLevel(data) {
+        this.dimensions = data.dimensions;
+        this.moveCount = 0;
+        this.isLevelCleared = false;
+        this.entities = new Map();
+        this.triggers = new Map();
+        this.goals = new Map();
+
+        data.entities.forEach(ent => this.entities.set(ent.id, { ...ent }));
+        data.triggers.forEach(trig => this.triggers.set(trig.id, { ...trig, is_pressed: false }));
+        data.goals.forEach(g => this.goals.set(g.id, { ...g, is_active: false }));
+
+        this.playerPos = { ...data.player_start };
+        this.render();
+      }
+
+      getEntityAt(x, z) {
+        for (let [id, ent] of this.entities.entries()) {
+          if (ent.position.x === x && ent.position.z === z) return ent;
+        }
+        return null;
+      }
+
+      movePlayer(direction) {
+        if (this.isLevelCleared) return;
+        const dir = DIRECTIONS[direction];
+        const targetX = this.playerPos.x + dir.x;
+        const targetZ = this.playerPos.z + dir.z;
+
+        if (targetX < 0 || targetX >= this.dimensions.width || targetZ < 0 || targetZ >= this.dimensions.depth) return;
+
+        const obstacle = this.getEntityAt(targetX, targetZ);
+
+        if (obstacle) {
+          if (obstacle.type === ENTITY_TYPES.BOX_ELEVATOR) {
+            this.playerPos.x = targetX;
+            this.playerPos.z = targetZ;
+            this._afterMove();
+            return;
+          }
+          if (!obstacle.is_pushable) return;
+
+          if (this._pushEntity(obstacle, dir)) {
+            this.playerPos.x = targetX;
+            this.playerPos.z = targetZ;
+            this._afterMove();
+          }
+          return;
+        }
+
+        this.playerPos.x = targetX;
+        this.playerPos.z = targetZ;
+        this._afterMove();
+      }
+
+      _pushEntity(entity, dir) {
+        let newX = entity.position.x + dir.x;
+        let newZ = entity.position.z + dir.z;
+
+        if (newX < 0 || newX >= this.dimensions.width || newZ < 0 || newZ >= this.dimensions.depth) return false;
+        if (this.getEntityAt(newX, newZ)) return false;
+
+        if (entity.type === ENTITY_TYPES.BOX_WOOD) {
+          entity.position.x = newX;
+          entity.position.z = newZ;
+          return true;
+        }
+
+        if (entity.type === ENTITY_TYPES.BOX_ICE) {
+          let lastX = entity.position.x;
+          let lastZ = entity.position.z;
+          while (newX >= 0 && newX < this.dimensions.width && newZ >= 0 && newZ < this.dimensions.depth && !this.getEntityAt(newX, newZ)) {
+            lastX = newX;
+            lastZ = newZ;
+            newX += dir.x;
+            newZ += dir.z;
+          }
+          entity.position.x = lastX;
+          entity.position.z = lastZ;
+          return true;
+        }
+        return false;
+      }
+
+      _afterMove() {
+        this.moveCount++;
+        this._checkTriggers();
+        this.render();
+      }
+
+      _checkTriggers() {
+        let allPressed = true;
+        this.triggers.forEach(trig => {
+          const occupant = this.getEntityAt(trig.position.x, trig.position.z);
+          const isPlayerOn = (this.playerPos.x === trig.position.x && this.playerPos.z === trig.position.z);
+          trig.is_pressed = (occupant || isPlayerOn);
+          if (!trig.is_pressed) allPressed = false;
+        });
+
+        this.goals.forEach(goal => {
+          goal.is_active = allPressed;
+          if (goal.is_active && this.playerPos.x === goal.position.x && this.playerPos.z === goal.position.z) {
+            this.isLevelCleared = true;
+            document.getElementById('status').innerText = `¡NIVEL COMPLETADO EN ${this.moveCount} MOVS!`;
+          }
+        });
+      }
+
+      render() {
+        const board = document.getElementById('game-board');
+        board.innerHTML = '';
+        if (!this.isLevelCleared) {
+          document.getElementById('status').innerText = `Movimientos: ${this.moveCount}`;
+        }
+
+        for (let z = 0; z < this.dimensions.depth; z++) {
+          for (let x = 0; x < this.dimensions.width; x++) {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+
+            // Dibujar Triggers / Goal
+            this.triggers.forEach(t => { if (t.position.x === x && t.position.z === z) tile.classList.add('pressure_plate'); });
+            this.goals.forEach(g => { if (g.position.x === x && g.position.z === z && g.is_active) tile.classList.add('exit_portal'); });
+
+            // Dibujar Entidades
+            const ent = this.getEntityAt(x, z);
+            if (ent) {
+              tile.classList.add(ent.type);
+              if (ent.type === ENTITY_TYPES.BOX_WOOD) tile.innerText = 'Madera';
+              if (ent.type === ENTITY_TYPES.BOX_ICE) tile.innerText = 'Hielo';
+              if (ent.type === ENTITY_TYPES.BOX_ELEVATOR) tile.innerText = 'Elev';
+              if (ent.type === ENTITY_TYPES.BOX_STONE) tile.innerText = 'Piedra';
+            }
+
+            // Dibujar Jugador
+            if (this.playerPos.x === x && this.playerPos.z === z) {
+              tile.className = 'tile player';
+              tile.innerText = 'P1';
+            }
+
+            board.appendChild(tile);
+          }
+        }
+      }
+    }
+
+    const levelData = {
+      dimensions: { width: 8, depth: 8 },
+      player_start: { x: 1, z: 1 },
+      entities: [
+        { id: "w1", type: ENTITY_TYPES.BOX_WOOD, position: { x: 2, z: 1 }, is_pushable: true },
+        { id: "i1", type: ENTITY_TYPES.BOX_ICE, position: { x: 4, z: 1 }, is_pushable: true },
+        { id: "e1", type: ENTITY_TYPES.BOX_ELEVATOR, position: { x: 1, z: 3 }, is_pushable: false },
+        { id: "s1", type: ENTITY_TYPES.BOX_STONE, position: { x: 6, z: 1 }, is_pushable: false }
+      ],
+      triggers: [{ id: "t1", type: ENTITY_TYPES.PRESSURE_PLATE, position: { x: 4, z: 5 } }],
+      goals: [{ id: "g1", type: ENTITY_TYPES.EXIT_PORTAL, position: { x: 7, z: 7 }, requires_all_triggers: true }]
+    };
+
+    const game = new PuzzleEngine(levelData);
+  </script>
+</body>
+</html>

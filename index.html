@@ -2,208 +2,313 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Editor y Motor de Niveles Puzzle 3D</title>
+  <title>Editor y Motor de Niveles Puzzle 3D / Tile-Based</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #fff; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }
-    #controls { background: #2a2a2a; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap; width: 100%; max-width: 800px; }
-    select, button { padding: 8px 12px; border-radius: 4px; border: none; background: #3a3a3a; color: #fff; cursor: pointer; font-weight: bold; }
-    button:hover, select:hover { background: #4a4a4a; }
-    #game-container { position: relative; width: 800px; height: 500px; background: #111; border-radius: 8px; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-    canvas { background: #000; border-radius: 4px; }
-    #info-panel { margin-top: 15px; background: #2a2a2a; padding: 10px 20px; border-radius: 6px; font-size: 14px; text-align: center; }
-    .status-msg { color: #00ffcc; font-weight: bold; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #18181c; color: #e1e1e6; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }
+    
+    header { width: 100%; max-width: 1000px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    h1 { font-size: 20px; color: #00ffcc; }
+
+    #main-layout { display: flex; gap: 20px; width: 100%; max-width: 1000px; }
+    
+    /* Panel lateral de herramientas del editor */
+    #editor-sidebar { background: #202024; padding: 15px; border-radius: 8px; width: 280px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #29292e; }
+    .section-title { font-size: 13px; text-transform: uppercase; color: #8d8d99; font-weight: bold; margin-top: 5px; }
+    
+    .tool-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    button, select, input { padding: 8px 10px; border-radius: 6px; border: 1px solid #323238; background: #29292e; color: #fff; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    button:hover, select:hover { background: #323238; border-color: #00ffcc; }
+    button.active { background: #00875f; border-color: #00b37e; font-weight: bold; }
+    
+    #game-container { position: relative; flex: 1; background: #121214; border-radius: 8px; border: 1px solid #29292e; display: flex; justify-content: center; align-items: center; min-height: 520px; overflow: hidden; }
+    canvas { background: #09090a; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+
+    #info-bar { width: 100%; max-width: 1000px; margin-top: 15px; background: #202024; padding: 10px 15px; border-radius: 6px; border: 1px solid #29292e; display: flex; justify-content: space-between; font-size: 13px; }
+    .status { font-weight: bold; color: #00ffcc; }
+    
+    textarea { width: 100%; height: 120px; background: #121214; color: #00ffcc; border: 1px solid #323238; border-radius: 6px; padding: 8px; font-family: monospace; font-size: 11px; resize: none; }
   </style>
 </head>
 <body>
 
-  <div id="controls">
-    <label for="level-select">Cargar Nivel:</label>
-    <select id="level-select" onchange="loadSelectedLevel()">
-      <option value="Nivel01_final">Nivel01_final</option>
-      <option value="Nivel02_final">Nivel02_final</option>
-      <option value="Nivel03_prueba">Nivel03_prueba</option>
-      <option value="Nivel04_prueba">Nivel04_prueba</option>
-      <option value="Nivel03_final" selected>Nivel03_final</option>
-    </select>
-    <button onclick="resetLevel()">Reiniciar Nivel</button>
+  <header>
+    <h1>Editor & Motor de Niveles Puzzle</h1>
+    <div>
+      <button id="btn-toggle-mode" onclick="toggleMode()">Modo: EDITOR</button>
+      <button onclick="resetLevel()">Reiniciar</button>
+    </div>
+  </header>
+
+  <div id="main-layout">
+    <!-- Panel Lateral de Herramientas -->
+    <div id="editor-sidebar">
+      <div class="section-title">Niveles Guardados</div>
+      <select id="level-select" onchange="loadPresetLevel()">
+        <option value="Nivel01_final">Nivel01_final</option>
+        <option value="Nivel02_final">Nivel02_final</option>
+        <option value="Nivel03_prueba">Nivel03_prueba</option>
+        <option value="Nivel04_prueba">Nivel04_prueba</option>
+        <option value="Nivel03_final" selected>Nivel03_final</option>
+      </select>
+
+      <div class="section-title">Herramienta de Edición</div>
+      <div class="tool-grid">
+        <button class="tool-btn active" onclick="selectTool('player', this)">Jugador</button>
+        <button class="tool-btn" onclick="selectTool('box_stone', this)">Piedra</button>
+        <button class="tool-btn" onclick="selectTool('box_wood', this)">Madera</button>
+        <button class="tool-btn" onclick="selectTool('pressure_plate', this)">Botón</button>
+        <button class="tool-btn" onclick="selectTool('gate', this)">Puerta</button>
+        <button class="tool-btn" onclick="selectTool('exit_portal', this)">Portal</button>
+        <!-- Nuevas Entidades -->
+        <button class="tool-btn" onclick="selectTool('pit', this)">Hoyo</button>
+        <button class="tool-btn" onclick="selectTool('lava', this)">Lava/Fuego</button>
+        <button class="tool-btn" onclick="selectTool('elevator', this)">Elevador</button>
+        <button class="tool-btn" onclick="selectTool('cannon', this)">Cañón (E)</button>
+        <button class="tool-btn" onclick="selectTool('erase', this)" style="grid-column: span 2; background: #7a1921;">Borrar Casilla</button>
+      </div>
+
+      <div class="section-title">JSON del Nivel</div>
+      <button onclick="exportJSON()">Exportar a JSON</button>
+      <button onclick="importJSON()">Cargar desde JSON</button>
+      <textarea id="json-io" placeholder="Pega tu JSON aquí o haz clic en exportar..."></textarea>
+    </div>
+
+    <!-- Área de Lienzo / Canvas -->
+    <div id="game-container">
+      <canvas id="canvas" width="600" height="500"></canvas>
+    </div>
   </div>
 
-  <div id="game-container">
-    <canvas id="gameCanvas" width="800" height="500"></canvas>
-  </div>
-
-  <div id="info-panel">
-    Controles: <strong>Flechas / WASD</strong> para moverte. | Duración del Tick: <strong>0.25s</strong>
-    <div id="status" class="status-msg">¡Listo para jugar!</div>
+  <div id="info-bar">
+    <div>Estado: <span id="status-text" class="status">Modo Editor Activo</span></div>
+    <div>Controles: <strong>WASD / Flechas</strong> (Modo Juego) | <strong>Click Izquierdo</strong> (Modo Editor)</div>
   </div>
 
   <script>
-    // --- NIVELES ---
-    const LEVELS = {
+    // --- NIVELES PREDEFINIDOS ---
+    const PRESETS = {
       "Nivel01_final": {
         "dimensions": { "width": 5, "depth": 3, "height": 3 },
         "player_start": { "x": 1, "y": 1, "z": 1 },
         "entities": [
-          { "id": "s1", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s2", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s3", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s4", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s5", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s6", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "s7", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "s8", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "s9", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "s10", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 2 }, "is_pushable": false }
+          { "id": "s1", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 0 } },
+          { "id": "s2", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 0 } },
+          { "id": "s3", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 0 } },
+          { "id": "s4", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 0 } },
+          { "id": "s5", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 0 } },
+          { "id": "s6", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 2 } },
+          { "id": "s7", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 2 } },
+          { "id": "s8", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 2 } },
+          { "id": "s9", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 2 } },
+          { "id": "s10", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 2 } }
         ],
-        "triggers": [],
-        "gates": [],
+        "triggers": [], "gates": [],
         "goals": [{ "id": "goal_1", "type": "exit_portal", "position": { "x": 3, "z": 1 } }]
       },
-
       "Nivel02_final": {
         "dimensions": { "width": 6, "depth": 3, "height": 3 },
         "player_start": { "x": 1, "y": 1, "z": 1 },
         "entities": [
-          { "id": "s1", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s2", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s3", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s4", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s5", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s6", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s7", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "s8", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "s9", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "s10", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "s11", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "s12", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "w1", "type": "box_wood", "position": { "x": 2, "y": 1, "z": 1 }, "is_pushable": true }
+          { "id": "s1", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 0 } },
+          { "id": "s2", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 0 } },
+          { "id": "s3", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 0 } },
+          { "id": "s4", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 0 } },
+          { "id": "s5", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 0 } },
+          { "id": "s6", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 0 } },
+          { "id": "s7", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 2 } },
+          { "id": "s8", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 2 } },
+          { "id": "s9", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 2 } },
+          { "id": "s10", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 2 } },
+          { "id": "s11", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 2 } },
+          { "id": "s12", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 2 } },
+          { "id": "w1", "type": "box_wood", "position": { "x": 2, "y": 1, "z": 1 } }
         ],
-        "triggers": [],
-        "gates": [],
+        "triggers": [], "gates": [],
         "goals": [{ "id": "goal_2", "type": "exit_portal", "position": { "x": 4, "z": 1 } }]
       },
-
       "Nivel03_prueba": {
         "dimensions": { "width": 6, "depth": 5, "height": 3 },
         "player_start": { "x": 1, "y": 1, "z": 1 },
         "entities": [
-          { "id": "s01", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s02", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s03", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s04", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s05", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s06", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s07", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 4 }, "is_pushable": false },
-          { "id": "s08", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 4 }, "is_pushable": false },
-          { "id": "s09", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 4 }, "is_pushable": false },
-          { "id": "s10", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 4 }, "is_pushable": false },
-          { "id": "s11", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 4 }, "is_pushable": false },
-          { "id": "s12", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 4 }, "is_pushable": false },
-          { "id": "s13", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 1 }, "is_pushable": false },
-          { "id": "s14", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "s15", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "s16", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "w1", "type": "box_wood", "position": { "x": 1, "y": 1, "z": 2 }, "is_pushable": true }
+          { "id": "s01", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 0 } },
+          { "id": "s02", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 0 } },
+          { "id": "s03", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 0 } },
+          { "id": "s04", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 0 } },
+          { "id": "s05", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 0 } },
+          { "id": "s06", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 0 } },
+          { "id": "s07", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 4 } },
+          { "id": "s08", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 4 } },
+          { "id": "s09", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 4 } },
+          { "id": "s10", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 4 } },
+          { "id": "s11", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 4 } },
+          { "id": "s12", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 4 } },
+          { "id": "s13", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 1 } },
+          { "id": "s14", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 2 } },
+          { "id": "s15", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 2 } },
+          { "id": "s16", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 2 } },
+          { "id": "w1", "type": "box_wood", "position": { "x": 1, "y": 1, "z": 2 } }
         ],
         "triggers": [{ "id": "trig_3", "type": "pressure_plate", "position": { "x": 2, "z": 2 }, "target_gate_id": "gate_3" }],
         "gates": [{ "id": "gate_3", "type": "gate", "position": { "x": 3, "z": 1 }, "is_open": false }],
         "goals": [{ "id": "goal_3", "type": "exit_portal", "position": { "x": 4, "z": 1 } }]
       },
-
       "Nivel04_prueba": {
         "dimensions": { "width": 6, "depth": 4, "height": 3 },
         "player_start": { "x": 2, "y": 1, "z": 1 },
         "entities": [
-          { "id": "s1", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 3 }, "is_pushable": false },
-          { "id": "s2", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 3 }, "is_pushable": false },
-          { "id": "s3", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 3 }, "is_pushable": false },
-          { "id": "s4", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 3 }, "is_pushable": false },
-          { "id": "s5", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 3 }, "is_pushable": false },
-          { "id": "s6", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 3 }, "is_pushable": false },
-          { "id": "s7", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s8", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s9", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s10", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "w1", "type": "box_wood", "position": { "x": 1, "y": 1, "z": 1 }, "is_pushable": true }
+          { "id": "s1", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 3 } },
+          { "id": "s2", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 3 } },
+          { "id": "s3", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 3 } },
+          { "id": "s4", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 3 } },
+          { "id": "s5", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 3 } },
+          { "id": "s6", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 3 } },
+          { "id": "s7", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 0 } },
+          { "id": "s8", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 0 } },
+          { "id": "s9", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 0 } },
+          { "id": "s10", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 2 } },
+          { "id": "w1", "type": "box_wood", "position": { "x": 1, "y": 1, "z": 1 } }
         ],
         "triggers": [{ "id": "trig_4", "type": "pressure_plate", "position": { "x": 2, "z": 2 }, "target_gate_id": "gate_4" }],
         "gates": [{ "id": "gate_4", "type": "gate", "position": { "x": 4, "z": 1 }, "is_open": false }],
         "goals": [{ "id": "goal_4", "type": "exit_portal", "position": { "x": 5, "z": 1 } }]
       },
-
       "Nivel03_final": {
         "dimensions": { "width": 6, "depth": 5, "height": 3 },
         "player_start": { "x": 1, "y": 1, "z": 1 },
         "entities": [
-          { "id": "s1", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s2", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s3", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s4", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s5", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s6", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 0 }, "is_pushable": false },
-          { "id": "s7", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 4 }, "is_pushable": false },
-          { "id": "s8", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 4 }, "is_pushable": false },
-          { "id": "s9", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 4 }, "is_pushable": false },
-          { "id": "s10", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 4 }, "is_pushable": false },
-          { "id": "s11", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 4 }, "is_pushable": false },
-          { "id": "s12", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 4 }, "is_pushable": false },
-          { "id": "s13", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 2 }, "is_pushable": false },
-          { "id": "s14", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 3 }, "is_pushable": false },
-          { "id": "w1", "type": "box_wood", "position": { "x": 1, "y": 1, "z": 2 }, "is_pushable": true },
-          // Nuevas mecánicas integradas
+          { "id": "s1", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 0 } },
+          { "id": "s2", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 0 } },
+          { "id": "s3", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 0 } },
+          { "id": "s4", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 0 } },
+          { "id": "s5", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 0 } },
+          { "id": "s6", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 0 } },
+          { "id": "s7", "type": "box_stone", "position": { "x": 0, "y": 1, "z": 4 } },
+          { "id": "s8", "type": "box_stone", "position": { "x": 1, "y": 1, "z": 4 } },
+          { "id": "s9", "type": "box_stone", "position": { "x": 2, "y": 1, "z": 4 } },
+          { "id": "s10", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 4 } },
+          { "id": "s11", "type": "box_stone", "position": { "x": 4, "y": 1, "z": 4 } },
+          { "id": "s12", "type": "box_stone", "position": { "x": 5, "y": 1, "z": 4 } },
+          { "id": "s13", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 2 } },
+          { "id": "s14", "type": "box_stone", "position": { "x": 3, "y": 1, "z": 3 } },
+          { "id": "w1", "type": "box_wood", "position": { "x": 1, "y": 1, "z": 2 } },
           { "id": "pit1", "type": "pit", "position": { "x": 0, "y": 1, "z": 2 } },
           { "id": "lava1", "type": "lava", "position": { "x": 2, "y": 1, "z": 1 } },
           { "id": "elev1", "type": "elevator", "position": { "x": 4, "y": 1, "z": 2 }, "current_y": 1 },
           { "id": "cannon1", "type": "cannon", "position": { "x": 0, "y": 1, "z": 1 }, "direction": "EAST" }
         ],
         "triggers": [
-          { "id": "btn_elev_up", "type": "pressure_plate", "position": { "x": 2, "z": 3 }, "target_elevator_id": "elev1", "elevation_delta": 1 },
-          { "id": "btn_elev_down", "type": "pressure_plate", "position": { "x": 1, "z": 3 }, "target_elevator_id": "elev1", "elevation_delta": -1 }
+          { "id": "btn_up", "type": "pressure_plate", "position": { "x": 2, "z": 3 }, "target_elevator_id": "elev1", "elevation_delta": 1 },
+          { "id": "btn_down", "type": "pressure_plate", "position": { "x": 1, "z": 3 }, "target_elevator_id": "elev1", "elevation_delta": -1 }
         ],
         "gates": [{ "id": "gate_5", "type": "gate", "position": { "x": 4, "z": 1 }, "is_open": false }],
         "goals": [{ "id": "goal_5", "type": "exit_portal", "position": { "x": 4, "z": 3 } }]
       }
     };
 
-    // --- VARIABLES DE MOTOR ---
-    const TICK_DURATION = 250; // 0.25 segundos
-    let currentLevelData = null;
-    let player = { x: 0, y: 1, z: 0 };
-    let entities = [];
-    let triggers = [];
-    let gates = [];
-    let goals = [];
-    let activeProjectile = null; // { x, y, z, dirX, dirZ }
-    let isMoving = false;
+    // --- VARIABLES GLOBALES Y ESTADO DE JUEGO ---
+    let level = null;
+    let player = { x: 1, y: 1, z: 1 };
+    let activeProjectile = null;
+    let currentTool = 'player';
+    let isEditorMode = true;
+    let isTickMoving = false;
+    const TICK_MS = 250; // 0.25 segundos por tick
 
-    const canvas = document.getElementById('gameCanvas');
+    const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    const statusDiv = document.getElementById('status');
-    const TILE_SIZE = 60;
+    const TILE_SIZE = 55;
 
-    function loadSelectedLevel() {
-      const selectedName = document.getElementById('level-select').value;
-      currentLevelData = JSON.parse(JSON.stringify(LEVELS[selectedName]));
+    // --- INICIALIZACIÓN ---
+    function loadPresetLevel() {
+      const name = document.getElementById('level-select').value;
+      level = JSON.parse(JSON.stringify(PRESETS[name]));
       resetLevel();
     }
 
     function resetLevel() {
-      player = { ...currentLevelData.player_start };
-      entities = JSON.parse(JSON.stringify(currentLevelData.entities || []));
-      triggers = JSON.parse(JSON.stringify(currentLevelData.triggers || []));
-      gates = JSON.parse(JSON.stringify(currentLevelData.gates || []));
-      goals = JSON.parse(JSON.stringify(currentLevelData.goals || []));
+      if (!level) return;
+      player = { ...level.player_start };
       activeProjectile = null;
-      isMoving = false;
-      updateGates();
-      statusDiv.textContent = "Nivel listo.";
+      isTickMoving = false;
+      // Reset de puertas
+      if (level.gates) level.gates.forEach(g => g.is_open = false);
+      // Reset de elevadores
+      if (level.entities) {
+        level.entities.forEach(e => {
+          if (e.type === 'elevator') e.current_y = 1;
+        });
+      }
       draw();
     }
 
-    // --- LOGICA DE COMPORTAMIENTO ---
-    function handleKeyDown(e) {
-      if (isMoving) return;
+    // --- CONMUTAR MODO EDITOR / JUEGO ---
+    function toggleMode() {
+      isEditorMode = !isEditorMode;
+      const btn = document.getElementById('btn-toggle-mode');
+      const statusText = document.getElementById('status-text');
+
+      if (isEditorMode) {
+        btn.textContent = "Modo: EDITOR";
+        btn.style.background = "#29292e";
+        statusText.textContent = "Modo Editor Activo";
+      } else {
+        btn.textContent = "Modo: SIMULACIÓN/JUEGO";
+        btn.style.background = "#00875f";
+        statusText.textContent = "Modo Juego (Prueba) Activo";
+        resetLevel();
+      }
+      draw();
+    }
+
+    function selectTool(tool, element) {
+      currentTool = tool;
+      document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+      if (element) element.classList.add('active');
+    }
+
+    // --- EDICIÓN POR INTERACCIÓN DIRECTA EN EL CANVAS ---
+    canvas.addEventListener('mousedown', (e) => {
+      if (!isEditorMode) return;
+      const rect = canvas.getBoundingClientRect();
+      const offsetX = (canvas.width - level.dimensions.width * TILE_SIZE) / 2;
+      const offsetY = (canvas.height - level.dimensions.depth * TILE_SIZE) / 2;
+
+      const clickX = Math.floor((e.clientX - rect.left - offsetX) / TILE_SIZE);
+      const clickZ = Math.floor((e.clientY - rect.top - offsetY) / TILE_SIZE);
+
+      if (clickX < 0 || clickX >= level.dimensions.width || clickZ < 0 || clickZ >= level.dimensions.depth) return;
+
+      if (currentTool === 'player') {
+        level.player_start = { x: clickX, y: 1, z: clickZ };
+        player = { ...level.player_start };
+      } else if (currentTool === 'pressure_plate') {
+        level.triggers = level.triggers.filter(t => t.position.x !== clickX || t.position.z !== clickZ);
+        level.triggers.push({ id: `trig_${Date.now()}`, type: 'pressure_plate', position: { x: clickX, z: clickZ } });
+      } else if (currentTool === 'gate') {
+        level.gates = level.gates.filter(g => g.position.x !== clickX || g.position.z !== clickZ);
+        level.gates.push({ id: `gate_${Date.now()}`, type: 'gate', position: { x: clickX, z: clickZ }, is_open: false });
+      } else if (currentTool === 'exit_portal') {
+        level.goals = [{ id: `goal_${Date.now()}`, type: 'exit_portal', position: { x: clickX, z: clickZ } }];
+      } else if (currentTool === 'erase') {
+        level.entities = level.entities.filter(e => !(e.position.x === clickX && e.position.z === clickZ));
+        level.triggers = level.triggers.filter(t => !(t.position.x === clickX && t.position.z === clickZ));
+        level.gates = level.gates.filter(g => !(g.position.x === clickX && g.position.z === clickZ));
+      } else {
+        // Entidades varias: stone, wood, pit, lava, elevator, cannon
+        level.entities = level.entities.filter(e => !(e.position.x === clickX && e.position.z === clickZ));
+        const newEnt = { id: `e_${Date.now()}`, type: currentTool, position: { x: clickX, y: 1, z: clickZ } };
+        if (currentTool === 'cannon') newEnt.direction = 'EAST';
+        if (currentTool === 'elevator') newEnt.current_y = 1;
+        level.entities.push(newEnt);
+      }
+
+      draw();
+    });
+
+    // --- CONTROLES Y MOVIMIENTO POR TICKS EN MODO JUEGO ---
+    window.addEventListener('keydown', (e) => {
+      if (isEditorMode || isTickMoving) return;
 
       let dx = 0, dz = 0;
       if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') dz = -1;
@@ -212,64 +317,60 @@
       if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') dx = 1;
 
       if (dx !== 0 || dz !== 0) {
-        attemptMove(dx, dz);
+        processStep(dx, dz);
       }
-    }
+    });
 
-    function attemptMove(dx, dz) {
+    function processStep(dx, dz) {
       const targetX = player.x + dx;
       const targetZ = player.z + dz;
 
-      // Colisión con límites del mapa
-      if (targetX < 0 || targetX >= currentLevelData.dimensions.width ||
-          targetZ < 0 || targetZ >= currentLevelData.dimensions.depth) return;
+      // Limites del mapa
+      if (targetX < 0 || targetX >= level.dimensions.width || targetZ < 0 || targetZ >= level.dimensions.depth) return;
 
-      // Pared de piedra
-      const stone = entities.find(e => e.type === 'box_stone' && e.position.x === targetX && e.position.z === targetZ && e.position.y === player.y);
+      // Colisión con piedra
+      const stone = level.entities.find(e => e.type === 'box_stone' && e.position.x === targetX && e.position.z === targetZ);
       if (stone) return;
 
-      // Puerta cerrada
-      const gate = gates.find(g => g.position.x === targetX && g.position.z === targetZ && !g.is_open);
+      // Puertas cerradas
+      const gate = level.gates.find(g => g.position.x === targetX && g.position.z === targetZ && !g.is_open);
       if (gate) return;
 
-      // Caja de madera empujable
-      const woodBox = entities.find(e => e.type === 'box_wood' && e.position.x === targetX && e.position.z === targetZ && e.position.y === player.y);
-      if (woodBox) {
-        const boxTargetX = targetX + dx;
-        const boxTargetZ = targetZ + dz;
-        const boxBlocker = entities.find(e => e.position.x === boxTargetX && e.position.z === boxTargetZ && e.position.y === player.y);
-        const boxGate = gates.find(g => g.position.x === boxTargetX && g.position.z === boxTargetZ && !g.is_open);
-        
-        if (boxTargetX < 0 || boxTargetX >= currentLevelData.dimensions.width ||
-            boxTargetZ < 0 || boxTargetZ >= currentLevelData.dimensions.depth || boxBlocker || boxGate) {
-          return; // No se puede empujar la caja
+      // Cajas de madera
+      const wood = level.entities.find(e => e.type === 'box_wood' && e.position.x === targetX && e.position.z === targetZ);
+      if (wood) {
+        const boxNextX = targetX + dx;
+        const boxNextZ = targetZ + dz;
+        const boxBlocker = level.entities.find(e => e.position.x === boxNextX && e.position.z === boxNextZ);
+        const boxGate = level.gates.find(g => g.position.x === boxNextX && g.position.z === boxNextZ && !g.is_open);
+
+        if (boxNextX < 0 || boxNextX >= level.dimensions.width || boxNextZ < 0 || boxNextZ >= level.dimensions.depth || boxBlocker || boxGate) {
+          return;
         }
-        woodBox.position.x = boxTargetX;
-        woodBox.position.z = boxTargetZ;
+        wood.position.x = boxNextX;
+        wood.position.z = boxNextZ;
       }
 
-      // El jugador inicia movimiento (dura 1 tick)
-      isMoving = true;
+      // Inicia el Tick
+      isTickMoving = true;
       player.x = targetX;
       player.z = targetZ;
 
-      // Procesar proyectil en el mismo tick
-      tickProjectile();
+      // Mover proyectil en el mismo tick
+      updateProjectile();
 
-      // Evaluar estado tras completarse el tick (250ms)
+      // Completar tick tras 250ms
       setTimeout(() => {
-        isMoving = false;
-        checkTriggers();
-        checkHazardsAndVictory();
+        isTickMoving = false;
+        checkTriggersAndHazards();
         draw();
-      }, TICK_DURATION);
+      }, TICK_MS);
 
       draw();
     }
 
-    function tickProjectile() {
-      // Si hay un cañón y no hay proyectil activo, se dispara uno
-      const cannon = entities.find(e => e.type === 'cannon');
+    function updateProjectile() {
+      const cannon = level.entities.find(e => e.type === 'cannon');
       if (cannon && !activeProjectile) {
         let dirX = 0, dirZ = 0;
         if (cannon.direction === 'EAST') dirX = 1;
@@ -277,106 +378,94 @@
         if (cannon.direction === 'SOUTH') dirZ = 1;
         if (cannon.direction === 'NORTH') dirZ = -1;
 
-        activeProjectile = {
-          x: cannon.position.x + dirX,
-          y: cannon.position.y,
-          z: cannon.position.z + dirZ,
-          dirX, dirZ
-        };
+        activeProjectile = { x: cannon.position.x + dirX, y: 1, z: cannon.position.z + dirZ, dirX, dirZ };
       } else if (activeProjectile) {
-        // Mover proyectil existente 1 casilla por tick
         activeProjectile.x += activeProjectile.dirX;
         activeProjectile.z += activeProjectile.dirZ;
 
-        // Si choca con pared o sale del mapa, se destruye
-        const hitStone = entities.find(e => e.type === 'box_stone' && e.position.x === activeProjectile.x && e.position.z === activeProjectile.z);
-        if (activeProjectile.x < 0 || activeProjectile.x >= currentLevelData.dimensions.width ||
-            activeProjectile.z < 0 || activeProjectile.z >= currentLevelData.dimensions.depth || hitStone) {
+        // Choque del proyectil
+        const hitStone = level.entities.find(e => e.type === 'box_stone' && e.position.x === activeProjectile.x && e.position.z === activeProjectile.z);
+        if (activeProjectile.x < 0 || activeProjectile.x >= level.dimensions.width || activeProjectile.z < 0 || activeProjectile.z >= level.dimensions.depth || hitStone) {
           activeProjectile = null;
         }
       }
     }
 
-    function checkTriggers() {
-      triggers.forEach(trig => {
-        const isPlayerOn = (player.x === trig.position.x && player.z === trig.position.z);
-        const isBoxOn = entities.some(e => e.type === 'box_wood' && e.position.x === trig.position.x && e.position.z === trig.position.z);
-        
-        if (isPlayerOn || isBoxOn) {
+    function checkTriggersAndHazards() {
+      // 1. Triggers y Elevadores
+      level.triggers.forEach(trig => {
+        const playerOn = (player.x === trig.position.x && player.z === trig.position.z);
+        const boxOn = level.entities.some(e => e.type === 'box_wood' && e.position.x === trig.position.x && e.position.z === trig.position.z);
+
+        if (playerOn || boxOn) {
           if (trig.target_gate_id) {
-            const gate = gates.find(g => g.id === trig.target_gate_id);
-            if (gate) gate.is_open = true;
+            const g = level.gates.find(gate => gate.id === trig.target_gate_id);
+            if (g) g.is_open = true;
           }
           if (trig.target_elevator_id && trig.elevation_delta) {
-            const elev = entities.find(e => e.id === trig.target_elevator_id);
-            if (elev) elev.position.y += trig.elevation_delta;
+            const elev = level.entities.find(e => e.id === trig.target_elevator_id);
+            if (elev) elev.current_y = (elev.current_y || 1) + trig.elevation_delta;
           }
         }
       });
-    }
 
-    function updateGates() {
-      gates.forEach(g => g.is_open = false);
-      checkTriggers();
-    }
-
-    function checkHazardsAndVictory() {
-      // 1. Proyectil impacta al jugador
-      if (activeProjectile && activeProjectile.x === player.x && activeProjectile.z === player.z && activeProjectile.y === player.y) {
-        statusDiv.textContent = "¡Te ha impactado un proyectil! Reiniciando...";
-        setTimeout(resetLevel, 500);
+      // 2. Colisión Proyectil con Jugador
+      if (activeProjectile && activeProjectile.x === player.x && activeProjectile.z === player.z) {
+        document.getElementById('status-text').textContent = "¡Eliminado por Proyectil! Reiniciando...";
+        setTimeout(resetLevel, 600);
         return;
       }
 
-      // 2. Trampa Lava
-      const lava = entities.find(e => e.type === 'lava' && e.position.x === player.x && e.position.z === player.z && e.position.y === player.y);
+      // 3. Casilla Lava/Fuego
+      const lava = level.entities.find(e => e.type === 'lava' && e.position.x === player.x && e.position.z === player.z);
       if (lava) {
-        statusDiv.textContent = "¡Caíste en lava! Reiniciando...";
-        setTimeout(resetLevel, 500);
+        document.getElementById('status-text').textContent = "¡Caíste en Lava! Reiniciando...";
+        setTimeout(resetLevel, 600);
         return;
       }
 
-      // 3. Trampa Hoyo (Solo en el piso inferior)
-      const pit = entities.find(e => e.type === 'pit' && e.position.x === player.x && e.position.z === player.z);
+      // 4. Casilla Hoyo
+      const pit = level.entities.find(e => e.type === 'pit' && e.position.x === player.x && e.position.z === player.z);
       if (pit && player.y === 1) {
-        statusDiv.textContent = "¡Caíste por el hoyo! Reiniciando...";
-        setTimeout(resetLevel, 500);
+        document.getElementById('status-text').textContent = "¡Caíste al Hoyo! Reiniciando...";
+        setTimeout(resetLevel, 600);
         return;
       }
 
-      // 4. Victoria
-      const goal = goals.find(g => g.position.x === player.x && g.position.z === player.z);
+      // 5. Portal / Victoria
+      const goal = level.goals.find(g => g.position.x === player.x && g.position.z === player.z);
       if (goal) {
-        statusDiv.textContent = "¡Nivel Completado!";
+        document.getElementById('status-text').textContent = "¡Nivel Resuelto con Éxito!";
       }
     }
 
-    // --- RENDERIZADO VISUAL ---
+    // --- DIBUJADO DE GRID Y OBJETOS EN CANVAS ---
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (!currentLevelData) return;
+      if (!level) return;
 
-      const offsetX = (canvas.width - currentLevelData.dimensions.width * TILE_SIZE) / 2;
-      const offsetY = (canvas.height - currentLevelData.dimensions.depth * TILE_SIZE) / 2;
+      const offsetX = (canvas.width - level.dimensions.width * TILE_SIZE) / 2;
+      const offsetY = (canvas.height - level.dimensions.depth * TILE_SIZE) / 2;
 
-      // Dibujar cuadrícula
-      for (let x = 0; x < currentLevelData.dimensions.width; x++) {
-        for (let z = 0; z < currentLevelData.dimensions.depth; z++) {
-          ctx.strokeStyle = '#333';
+      // Cuadrícula base
+      for (let x = 0; x < level.dimensions.width; x++) {
+        for (let z = 0; z < level.dimensions.depth; z++) {
+          ctx.strokeStyle = '#29292e';
+          ctx.lineWidth = 1;
           ctx.strokeRect(offsetX + x * TILE_SIZE, offsetY + z * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         }
       }
 
       // Entidades
-      entities.forEach(e => {
+      level.entities.forEach(e => {
         const px = offsetX + e.position.x * TILE_SIZE;
         const pz = offsetY + e.position.z * TILE_SIZE;
 
         if (e.type === 'box_stone') {
-          ctx.fillStyle = '#7f8c8d';
+          ctx.fillStyle = '#4e5968';
           ctx.fillRect(px + 4, pz + 4, TILE_SIZE - 8, TILE_SIZE - 8);
         } else if (e.type === 'box_wood') {
-          ctx.fillStyle = '#d35400';
+          ctx.fillStyle = '#b86518';
           ctx.fillRect(px + 6, pz + 6, TILE_SIZE - 12, TILE_SIZE - 12);
         } else if (e.type === 'pit') {
           ctx.fillStyle = '#000000';
@@ -384,21 +473,22 @@
           ctx.arc(px + TILE_SIZE/2, pz + TILE_SIZE/2, TILE_SIZE/3, 0, Math.PI * 2);
           ctx.fill();
         } else if (e.type === 'lava') {
-          ctx.fillStyle = '#e74c3c';
-          ctx.fillRect(px + 8, pz + 8, TILE_SIZE - 16, TILE_SIZE - 16);
+          ctx.fillStyle = '#d9381e';
+          ctx.fillRect(px + 6, pz + 6, TILE_SIZE - 12, TILE_SIZE - 12);
         } else if (e.type === 'elevator') {
-          ctx.fillStyle = '#9b59b6';
-          ctx.fillRect(px + 2, pz + 2, TILE_SIZE - 4, TILE_SIZE - 4);
+          ctx.fillStyle = '#8e44ad';
+          ctx.fillRect(px + 3, pz + 3, TILE_SIZE - 6, TILE_SIZE - 6);
           ctx.fillStyle = '#fff';
-          ctx.fillText(`Piso:${e.position.y}`, px + 10, pz + TILE_SIZE / 2);
+          ctx.font = '10px sans-serif';
+          ctx.fillText(`Elev:${e.current_y||1}`, px + 8, pz + TILE_SIZE/2 + 4);
         } else if (e.type === 'cannon') {
           ctx.fillStyle = '#2c3e50';
-          ctx.fillRect(px + 10, pz + 10, TILE_SIZE - 20, TILE_SIZE - 20);
+          ctx.fillRect(px + 8, pz + 8, TILE_SIZE - 16, TILE_SIZE - 16);
         }
       });
 
-      // Botones / Triggers
-      triggers.forEach(t => {
+      // Triggers (Botones)
+      level.triggers.forEach(t => {
         const px = offsetX + t.position.x * TILE_SIZE;
         const pz = offsetY + t.position.z * TILE_SIZE;
         ctx.fillStyle = '#f1c40f';
@@ -407,11 +497,19 @@
         ctx.fill();
       });
 
-      // Portales / Metas
-      goals.forEach(g => {
+      // Puertas
+      level.gates.forEach(g => {
         const px = offsetX + g.position.x * TILE_SIZE;
         const pz = offsetY + g.position.z * TILE_SIZE;
-        ctx.fillStyle = '#2ecc71';
+        ctx.fillStyle = g.is_open ? '#27ae60' : '#c0392b';
+        ctx.fillRect(px + 10, pz + 10, TILE_SIZE - 20, TILE_SIZE - 20);
+      });
+
+      // Goals (Portal)
+      level.goals.forEach(g => {
+        const px = offsetX + g.position.x * TILE_SIZE;
+        const pz = offsetY + g.position.z * TILE_SIZE;
+        ctx.fillStyle = '#00b37e';
         ctx.fillRect(px + 12, pz + 12, TILE_SIZE - 24, TILE_SIZE - 24);
       });
 
@@ -428,15 +526,28 @@
       // Jugador
       const playerPx = offsetX + player.x * TILE_SIZE;
       const playerPz = offsetY + player.z * TILE_SIZE;
-      ctx.fillStyle = '#3498db';
+      ctx.fillStyle = '#00a8ff';
       ctx.beginPath();
       ctx.arc(playerPx + TILE_SIZE/2, playerPz + TILE_SIZE/2, TILE_SIZE/3, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // Inicialización de eventos
-    window.addEventListener('keydown', handleKeyDown);
-    window.onload = loadSelectedLevel;
+    // --- JSON IMPORT & EXPORT ---
+    function exportJSON() {
+      document.getElementById('json-io').value = JSON.stringify(level, null, 2);
+    }
+
+    function importJSON() {
+      try {
+        const data = JSON.parse(document.getElementById('json-io').value);
+        level = data;
+        resetLevel();
+      } catch (err) {
+        alert("El JSON ingresado no es válido.");
+      }
+    }
+
+    window.onload = loadPresetLevel;
   </script>
 </body>
 </html>

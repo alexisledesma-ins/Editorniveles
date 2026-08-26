@@ -2,40 +2,135 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Editor y Motor de Niveles Puzzle 3D / Tile-Based</title>
+  <title>Editor de Niveles Puzzle 3D / Tile-Based</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #18181c; color: #e1e1e6; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 20px; }
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      background: #0d1117; 
+      color: #c9d1d9; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      min-height: 100vh; 
+      padding: 20px; 
+    }
     
-    header { width: 100%; max-width: 1000px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    h1 { font-size: 20px; color: #00ffcc; }
+    header { 
+      width: 100%; 
+      max-width: 1050px; 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      margin-bottom: 15px; 
+      border-bottom: 1px solid #30363d;
+      padding-bottom: 10px;
+    }
+    h1 { font-size: 22px; color: #008080; } /* Teal / Azul cerceta */
 
-    #main-layout { display: flex; gap: 20px; width: 100%; max-width: 1000px; }
+    #main-layout { display: flex; gap: 20px; width: 100%; max-width: 1050px; }
     
     /* Panel lateral de herramientas del editor */
-    #editor-sidebar { background: #202024; padding: 15px; border-radius: 8px; width: 280px; display: flex; flex-direction: column; gap: 12px; border: 1px solid #29292e; }
-    .section-title { font-size: 13px; text-transform: uppercase; color: #8d8d99; font-weight: bold; margin-top: 5px; }
+    #editor-sidebar { 
+      background: #161b22; 
+      padding: 15px; 
+      border-radius: 8px; 
+      width: 290px; 
+      display: flex; 
+      flex-direction: column; 
+      gap: 12px; 
+      border: 1px solid #30363d; 
+    }
+    .section-title { font-size: 12px; text-transform: uppercase; color: #32cd32; font-weight: bold; margin-top: 5px; } /* Lime green */
     
     .tool-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-    button, select, input { padding: 8px 10px; border-radius: 6px; border: 1px solid #323238; background: #29292e; color: #fff; font-size: 13px; cursor: pointer; transition: all 0.2s; }
-    button:hover, select:hover { background: #323238; border-color: #00ffcc; }
-    button.active { background: #00875f; border-color: #00b37e; font-weight: bold; }
+    button, select, input { 
+      padding: 8px 10px; 
+      border-radius: 6px; 
+      border: 1px solid #30363d; 
+      background: #21262d; 
+      color: #c9d1d9; 
+      font-size: 12px; 
+      cursor: pointer; 
+      transition: all 0.2s; 
+    }
+    button:hover, select:hover { background: #30363d; border-color: #32cd32; }
+    button.active { background: #008080; border-color: #32cd32; font-weight: bold; color: #fff; }
     
-    #game-container { position: relative; flex: 1; background: #121214; border-radius: 8px; border: 1px solid #29292e; display: flex; justify-content: center; align-items: center; min-height: 520px; overflow: hidden; }
-    canvas { background: #09090a; border-radius: 4px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+    #game-container { 
+      position: relative; 
+      flex: 1; 
+      background: #161b22; 
+      border-radius: 8px; 
+      border: 1px solid #30363d; 
+      display: flex; 
+      flex-direction: column;
+      justify-content: center; 
+      align-items: center; 
+      min-height: 520px; 
+      padding: 15px;
+    }
+    canvas { background: #010409; border-radius: 6px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); }
 
-    #info-bar { width: 100%; max-width: 1000px; margin-top: 15px; background: #202024; padding: 10px 15px; border-radius: 6px; border: 1px solid #29292e; display: flex; justify-content: space-between; font-size: 13px; }
-    .status { font-weight: bold; color: #00ffcc; }
+    /* Controles Táctiles / Flechas de Dirección */
+    #touch-controls {
+      display: grid;
+      grid-template-columns: repeat(3, 50px);
+      grid-template-rows: repeat(2, 50px);
+      gap: 6px;
+      margin-top: 15px;
+      justify-content: center;
+    }
+    .arrow-btn {
+      width: 50px;
+      height: 50px;
+      font-size: 18px;
+      font-weight: bold;
+      background: #21262d;
+      border: 1px solid #008080;
+      color: #32cd32;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+    }
+    .arrow-btn:active { background: #008080; color: #fff; }
+
+    #info-bar { 
+      width: 100%; 
+      max-width: 1050px; 
+      margin-top: 15px; 
+      background: #161b22; 
+      padding: 12px 15px; 
+      border-radius: 6px; 
+      border: 1px solid #30363d; 
+      display: flex; 
+      justify-content: space-between; 
+      font-size: 13px; 
+    }
+    .status { font-weight: bold; color: #32cd32; }
     
-    textarea { width: 100%; height: 120px; background: #121214; color: #00ffcc; border: 1px solid #323238; border-radius: 6px; padding: 8px; font-family: monospace; font-size: 11px; resize: none; }
+    textarea { 
+      width: 100%; 
+      height: 100px; 
+      background: #0d1117; 
+      color: #32cd32; 
+      border: 1px solid #30363d; 
+      border-radius: 6px; 
+      padding: 8px; 
+      font-family: monospace; 
+      font-size: 11px; 
+      resize: none; 
+    }
   </style>
 </head>
 <body>
 
   <header>
-    <h1>Editor & Motor de Niveles Puzzle</h1>
+    <h1>Editor y Motor de Niveles Puzzle</h1>
     <div>
-      <button id="btn-toggle-mode" onclick="toggleMode()">Modo: EDITOR</button>
+      <button id="btn-toggle-mode" onclick="toggleMode()" style="border-color: #32cd32;">Modo: EDITOR</button>
       <button onclick="resetLevel()">Reiniciar</button>
     </div>
   </header>
@@ -52,7 +147,7 @@
         <option value="Nivel03_final" selected>Nivel03_final</option>
       </select>
 
-      <div class="section-title">Herramienta de Edición</div>
+      <div class="section-title">Herramientas de Edición</div>
       <div class="tool-grid">
         <button class="tool-btn active" onclick="selectTool('player', this)">Jugador</button>
         <button class="tool-btn" onclick="selectTool('box_stone', this)">Piedra</button>
@@ -60,33 +155,41 @@
         <button class="tool-btn" onclick="selectTool('pressure_plate', this)">Botón</button>
         <button class="tool-btn" onclick="selectTool('gate', this)">Puerta</button>
         <button class="tool-btn" onclick="selectTool('exit_portal', this)">Portal</button>
-        <!-- Nuevas Entidades -->
         <button class="tool-btn" onclick="selectTool('pit', this)">Hoyo</button>
         <button class="tool-btn" onclick="selectTool('lava', this)">Lava/Fuego</button>
         <button class="tool-btn" onclick="selectTool('elevator', this)">Elevador</button>
         <button class="tool-btn" onclick="selectTool('cannon', this)">Cañón (E)</button>
-        <button class="tool-btn" onclick="selectTool('erase', this)" style="grid-column: span 2; background: #7a1921;">Borrar Casilla</button>
+        <button class="tool-btn" onclick="selectTool('erase', this)" style="grid-column: span 2; background: #8b0000; border-color: #ff4d4d;">Borrar Casilla</button>
       </div>
 
       <div class="section-title">JSON del Nivel</div>
       <button onclick="exportJSON()">Exportar a JSON</button>
       <button onclick="importJSON()">Cargar desde JSON</button>
-      <textarea id="json-io" placeholder="Pega tu JSON aquí o haz clic en exportar..."></textarea>
+      <textarea id="json-io" placeholder="Pega tu JSON aquí o exporta..."></textarea>
     </div>
 
-    <!-- Área de Lienzo / Canvas -->
+    <!-- Área de Lienzo + Flechas en Pantalla -->
     <div id="game-container">
-      <canvas id="canvas" width="600" height="500"></canvas>
+      <canvas id="canvas" width="600" height="380"></canvas>
+      
+      <!-- Flechas Táctiles de Movimiento -->
+      <div id="touch-controls">
+        <div></div>
+        <button class="arrow-btn" onclick="processStep(0, -1)">▲</button>
+        <div></div>
+        <button class="arrow-btn" onclick="processStep(-1, 0)">◄</button>
+        <button class="arrow-btn" onclick="processStep(0, 1)">▼</button>
+        <button class="arrow-btn" onclick="processStep(1, 0)">►</button>
+      </div>
     </div>
   </div>
 
   <div id="info-bar">
     <div>Estado: <span id="status-text" class="status">Modo Editor Activo</span></div>
-    <div>Controles: <strong>WASD / Flechas</strong> (Modo Juego) | <strong>Click Izquierdo</strong> (Modo Editor)</div>
+    <div>Controles: <strong>WASD / Flechas Teclado / Botones Pantalla</strong></div>
   </div>
 
   <script>
-    // --- NIVELES PREDEFINIDOS ---
     const PRESETS = {
       "Nivel01_final": {
         "dimensions": { "width": 5, "depth": 3, "height": 3 },
@@ -206,20 +309,18 @@
       }
     };
 
-    // --- VARIABLES GLOBALES Y ESTADO DE JUEGO ---
     let level = null;
     let player = { x: 1, y: 1, z: 1 };
     let activeProjectile = null;
     let currentTool = 'player';
     let isEditorMode = true;
     let isTickMoving = false;
-    const TICK_MS = 250; // 0.25 segundos por tick
+    const TICK_MS = 250;
 
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const TILE_SIZE = 55;
 
-    // --- INICIALIZACIÓN ---
     function loadPresetLevel() {
       const name = document.getElementById('level-select').value;
       level = JSON.parse(JSON.stringify(PRESETS[name]));
@@ -231,9 +332,7 @@
       player = { ...level.player_start };
       activeProjectile = null;
       isTickMoving = false;
-      // Reset de puertas
       if (level.gates) level.gates.forEach(g => g.is_open = false);
-      // Reset de elevadores
       if (level.entities) {
         level.entities.forEach(e => {
           if (e.type === 'elevator') e.current_y = 1;
@@ -242,7 +341,6 @@
       draw();
     }
 
-    // --- CONMUTAR MODO EDITOR / JUEGO ---
     function toggleMode() {
       isEditorMode = !isEditorMode;
       const btn = document.getElementById('btn-toggle-mode');
@@ -250,12 +348,12 @@
 
       if (isEditorMode) {
         btn.textContent = "Modo: EDITOR";
-        btn.style.background = "#29292e";
+        btn.style.background = "#21262d";
         statusText.textContent = "Modo Editor Activo";
       } else {
         btn.textContent = "Modo: SIMULACIÓN/JUEGO";
-        btn.style.background = "#00875f";
-        statusText.textContent = "Modo Juego (Prueba) Activo";
+        btn.style.background = "#008080";
+        statusText.textContent = "Modo Juego Activo";
         resetLevel();
       }
       draw();
@@ -267,7 +365,6 @@
       if (element) element.classList.add('active');
     }
 
-    // --- EDICIÓN POR INTERACCIÓN DIRECTA EN EL CANVAS ---
     canvas.addEventListener('mousedown', (e) => {
       if (!isEditorMode) return;
       const rect = canvas.getBoundingClientRect();
@@ -295,7 +392,6 @@
         level.triggers = level.triggers.filter(t => !(t.position.x === clickX && t.position.z === clickZ));
         level.gates = level.gates.filter(g => !(g.position.x === clickX && g.position.z === clickZ));
       } else {
-        // Entidades varias: stone, wood, pit, lava, elevator, cannon
         level.entities = level.entities.filter(e => !(e.position.x === clickX && e.position.z === clickZ));
         const newEnt = { id: `e_${Date.now()}`, type: currentTool, position: { x: clickX, y: 1, z: clickZ } };
         if (currentTool === 'cannon') newEnt.direction = 'EAST';
@@ -306,10 +402,8 @@
       draw();
     });
 
-    // --- CONTROLES Y MOVIMIENTO POR TICKS EN MODO JUEGO ---
     window.addEventListener('keydown', (e) => {
-      if (isEditorMode || isTickMoving) return;
-
+      if (isEditorMode) return;
       let dx = 0, dz = 0;
       if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') dz = -1;
       if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') dz = 1;
@@ -322,21 +416,19 @@
     });
 
     function processStep(dx, dz) {
+      if (isEditorMode || isTickMoving) return;
+
       const targetX = player.x + dx;
       const targetZ = player.z + dz;
 
-      // Limites del mapa
       if (targetX < 0 || targetX >= level.dimensions.width || targetZ < 0 || targetZ >= level.dimensions.depth) return;
 
-      // Colisión con piedra
       const stone = level.entities.find(e => e.type === 'box_stone' && e.position.x === targetX && e.position.z === targetZ);
       if (stone) return;
 
-      // Puertas cerradas
       const gate = level.gates.find(g => g.position.x === targetX && g.position.z === targetZ && !g.is_open);
       if (gate) return;
 
-      // Cajas de madera
       const wood = level.entities.find(e => e.type === 'box_wood' && e.position.x === targetX && e.position.z === targetZ);
       if (wood) {
         const boxNextX = targetX + dx;
@@ -351,15 +443,12 @@
         wood.position.z = boxNextZ;
       }
 
-      // Inicia el Tick
       isTickMoving = true;
       player.x = targetX;
       player.z = targetZ;
 
-      // Mover proyectil en el mismo tick
       updateProjectile();
 
-      // Completar tick tras 250ms
       setTimeout(() => {
         isTickMoving = false;
         checkTriggersAndHazards();
@@ -383,7 +472,6 @@
         activeProjectile.x += activeProjectile.dirX;
         activeProjectile.z += activeProjectile.dirZ;
 
-        // Choque del proyectil
         const hitStone = level.entities.find(e => e.type === 'box_stone' && e.position.x === activeProjectile.x && e.position.z === activeProjectile.z);
         if (activeProjectile.x < 0 || activeProjectile.x >= level.dimensions.width || activeProjectile.z < 0 || activeProjectile.z >= level.dimensions.depth || hitStone) {
           activeProjectile = null;
@@ -392,7 +480,6 @@
     }
 
     function checkTriggersAndHazards() {
-      // 1. Triggers y Elevadores
       level.triggers.forEach(trig => {
         const playerOn = (player.x === trig.position.x && player.z === trig.position.z);
         const boxOn = level.entities.some(e => e.type === 'box_wood' && e.position.x === trig.position.x && e.position.z === trig.position.z);
@@ -409,37 +496,32 @@
         }
       });
 
-      // 2. Colisión Proyectil con Jugador
       if (activeProjectile && activeProjectile.x === player.x && activeProjectile.z === player.z) {
-        document.getElementById('status-text').textContent = "¡Eliminado por Proyectil! Reiniciando...";
+        document.getElementById('status-text').textContent = "¡Eliminado por Proyectil!";
         setTimeout(resetLevel, 600);
         return;
       }
 
-      // 3. Casilla Lava/Fuego
       const lava = level.entities.find(e => e.type === 'lava' && e.position.x === player.x && e.position.z === player.z);
       if (lava) {
-        document.getElementById('status-text').textContent = "¡Caíste en Lava! Reiniciando...";
+        document.getElementById('status-text').textContent = "¡Caíste en Lava!";
         setTimeout(resetLevel, 600);
         return;
       }
 
-      // 4. Casilla Hoyo
       const pit = level.entities.find(e => e.type === 'pit' && e.position.x === player.x && e.position.z === player.z);
       if (pit && player.y === 1) {
-        document.getElementById('status-text').textContent = "¡Caíste al Hoyo! Reiniciando...";
+        document.getElementById('status-text').textContent = "¡Caíste al Hoyo!";
         setTimeout(resetLevel, 600);
         return;
       }
 
-      // 5. Portal / Victoria
       const goal = level.goals.find(g => g.position.x === player.x && g.position.z === player.z);
       if (goal) {
-        document.getElementById('status-text').textContent = "¡Nivel Resuelto con Éxito!";
+        document.getElementById('status-text').textContent = "¡Nivel Completado!";
       }
     }
 
-    // --- DIBUJADO DE GRID Y OBJETOS EN CANVAS ---
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       if (!level) return;
@@ -447,47 +529,44 @@
       const offsetX = (canvas.width - level.dimensions.width * TILE_SIZE) / 2;
       const offsetY = (canvas.height - level.dimensions.depth * TILE_SIZE) / 2;
 
-      // Cuadrícula base
       for (let x = 0; x < level.dimensions.width; x++) {
         for (let z = 0; z < level.dimensions.depth; z++) {
-          ctx.strokeStyle = '#29292e';
+          ctx.strokeStyle = '#30363d';
           ctx.lineWidth = 1;
           ctx.strokeRect(offsetX + x * TILE_SIZE, offsetY + z * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         }
       }
 
-      // Entidades
       level.entities.forEach(e => {
         const px = offsetX + e.position.x * TILE_SIZE;
         const pz = offsetY + e.position.z * TILE_SIZE;
 
         if (e.type === 'box_stone') {
-          ctx.fillStyle = '#4e5968';
+          ctx.fillStyle = '#485460';
           ctx.fillRect(px + 4, pz + 4, TILE_SIZE - 8, TILE_SIZE - 8);
         } else if (e.type === 'box_wood') {
-          ctx.fillStyle = '#b86518';
+          ctx.fillStyle = '#d35400';
           ctx.fillRect(px + 6, pz + 6, TILE_SIZE - 12, TILE_SIZE - 12);
         } else if (e.type === 'pit') {
-          ctx.fillStyle = '#000000';
+          ctx.fillStyle = '#050505';
           ctx.beginPath();
           ctx.arc(px + TILE_SIZE/2, pz + TILE_SIZE/2, TILE_SIZE/3, 0, Math.PI * 2);
           ctx.fill();
         } else if (e.type === 'lava') {
-          ctx.fillStyle = '#d9381e';
+          ctx.fillStyle = '#e74c3c';
           ctx.fillRect(px + 6, pz + 6, TILE_SIZE - 12, TILE_SIZE - 12);
         } else if (e.type === 'elevator') {
-          ctx.fillStyle = '#8e44ad';
+          ctx.fillStyle = '#9b59b6';
           ctx.fillRect(px + 3, pz + 3, TILE_SIZE - 6, TILE_SIZE - 6);
           ctx.fillStyle = '#fff';
           ctx.font = '10px sans-serif';
           ctx.fillText(`Elev:${e.current_y||1}`, px + 8, pz + TILE_SIZE/2 + 4);
         } else if (e.type === 'cannon') {
-          ctx.fillStyle = '#2c3e50';
+          ctx.fillStyle = '#34495e';
           ctx.fillRect(px + 8, pz + 8, TILE_SIZE - 16, TILE_SIZE - 16);
         }
       });
 
-      // Triggers (Botones)
       level.triggers.forEach(t => {
         const px = offsetX + t.position.x * TILE_SIZE;
         const pz = offsetY + t.position.z * TILE_SIZE;
@@ -497,23 +576,20 @@
         ctx.fill();
       });
 
-      // Puertas
       level.gates.forEach(g => {
         const px = offsetX + g.position.x * TILE_SIZE;
         const pz = offsetY + g.position.z * TILE_SIZE;
-        ctx.fillStyle = g.is_open ? '#27ae60' : '#c0392b';
+        ctx.fillStyle = g.is_open ? '#2ecc71' : '#e74c3c';
         ctx.fillRect(px + 10, pz + 10, TILE_SIZE - 20, TILE_SIZE - 20);
       });
 
-      // Goals (Portal)
       level.goals.forEach(g => {
         const px = offsetX + g.position.x * TILE_SIZE;
         const pz = offsetY + g.position.z * TILE_SIZE;
-        ctx.fillStyle = '#00b37e';
+        ctx.fillStyle = '#32cd32';
         ctx.fillRect(px + 12, pz + 12, TILE_SIZE - 24, TILE_SIZE - 24);
       });
 
-      // Proyectil
       if (activeProjectile) {
         const px = offsetX + activeProjectile.x * TILE_SIZE;
         const pz = offsetY + activeProjectile.z * TILE_SIZE;
@@ -523,16 +599,14 @@
         ctx.fill();
       }
 
-      // Jugador
       const playerPx = offsetX + player.x * TILE_SIZE;
       const playerPz = offsetY + player.z * TILE_SIZE;
-      ctx.fillStyle = '#00a8ff';
+      ctx.fillStyle = '#008080';
       ctx.beginPath();
       ctx.arc(playerPx + TILE_SIZE/2, playerPz + TILE_SIZE/2, TILE_SIZE/3, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    // --- JSON IMPORT & EXPORT ---
     function exportJSON() {
       document.getElementById('json-io').value = JSON.stringify(level, null, 2);
     }
